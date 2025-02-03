@@ -12,6 +12,7 @@ import com.fasterxml.jackson.databind.ObjectMapper;
 
 import fr.insalyon.creatis.moteurlite.MoteurLiteException;
 import fr.insalyon.creatis.moteurlite.boutiques.scheme.BoutiquesDescriptor;
+import fr.insalyon.creatis.moteurlite.boutiques.scheme.Custom;
 import fr.insalyon.creatis.moteurlite.boutiques.scheme.Input;
 import fr.insalyon.creatis.moteurlite.boutiques.scheme.OutputFile;
 
@@ -65,7 +66,10 @@ public class BoutiquesService {
 
     private Set<String> extractCustomField(BoutiquesDescriptor boutiquesDescriptor, String key) {
         Set<String> resultSet = new HashSet<>();
-        Map<String, Object> customMap = boutiquesDescriptor.getCustom().getAdditionalProperties();
+        Custom c = boutiquesDescriptor.getCustom();
+        Map<String, Object> customMap = null;
+        if (c != null)
+            customMap = c.getAdditionalProperties();
 
         if (customMap != null && customMap.containsKey(key)) {
             Object value = customMap.get(key);

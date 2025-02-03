@@ -1,16 +1,16 @@
 package fr.insalyon.creatis.moteurlite.iteration;
 
-import java.util.HashSet;
-import java.util.List;
-import java.util.Map;
-import java.util.Set;
+import java.util.*;
 import java.util.stream.Collectors;
 
+import fr.insalyon.creatis.moteurlite.MoteurLite;
 import fr.insalyon.creatis.moteurlite.MoteurLiteException;
 import fr.insalyon.creatis.moteurlite.boutiques.BoutiquesService;
 import fr.insalyon.creatis.moteurlite.boutiques.scheme.BoutiquesDescriptor;
+import org.apache.log4j.Logger;
 
 public class IterationService {
+    private static final Logger logger = Logger.getLogger(MoteurLite.class);
     private final BoutiquesService boutiquesService;
     private final IterationTypes iterationTypes;
 
@@ -31,9 +31,36 @@ public class IterationService {
         crossKeys.retainAll(inputsMap.keySet());
         crossKeys.addAll(allKeys);
 
+        logger.info("XXX inputsMap.0=" + inputsMap);
+
+        // prototype directory listing: transform a single directory input into a list of file inputs
+        Map<String, List<String>> i2 = new HashMap<String, List<String>>();
+        for (String key: inputsMap.keySet()) {
+            List<String> val = inputsMap.get(key);
+            // ... XXX some "is a directory" detection here (else, regular file)
+            if (key.equals("input1") &&
+                    val.size() == 1 &&
+                    val.getFirst().equals("file:/var/www/html/workflows/SharedData/users/admin_test")) {
+                List<String> val2 = new ArrayList<String>();
+                // ... XXX some ls + globbing here
+                val2.add(val.getFirst() + "/" + "example.txt");
+                val2.add(val.getFirst() + "/" + "example3.txt");
+                i2.put(key, val2);
+            } else {
+                i2.put(key, val);
+            }
+        }
+        inputsMap = i2;
+
+        logger.info("XXX inputsMap=" + inputsMap);
+        logger.info("XXX dotKeys=" + dotKeys);
+        logger.info("XXX crossKeys=" + crossKeys);
         List<Map<String, String>> dotCombinations = iterationTypes.dot(getSelectedMap(inputsMap, dotKeys));
         List<Map<String, String>> crossCombinations = iterationTypes.cross(getSelectedMap(inputsMap, crossKeys));
         List<Map<String, String>> resultCombinations = iterationTypes.cross(dotCombinations, crossCombinations);
+        logger.info("XXX dotCombinations=" + dotCombinations);
+        logger.info("XXX crossCombinations=" + crossCombinations);
+        logger.info("XXX resultCombinations=" + resultCombinations);
 
         return resultCombinations;
     }
