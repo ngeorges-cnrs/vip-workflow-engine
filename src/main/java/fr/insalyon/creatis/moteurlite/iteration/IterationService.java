@@ -2,12 +2,21 @@ package fr.insalyon.creatis.moteurlite.iteration;
 
 import java.util.*;
 import java.util.stream.Collectors;
+import java.io.File;
+import java.nio.file.Paths;
+import java.nio.file.FileSystems;
+import java.nio.file.PathMatcher;
 
 import fr.insalyon.creatis.moteurlite.MoteurLite;
 import fr.insalyon.creatis.moteurlite.MoteurLiteException;
 import fr.insalyon.creatis.moteurlite.boutiques.BoutiquesService;
 import fr.insalyon.creatis.moteurlite.boutiques.scheme.BoutiquesDescriptor;
 import org.apache.log4j.Logger;
+
+import fr.insalyon.creatis.grida.common.bean.GridData;
+import fr.insalyon.creatis.grida.client.GRIDAClient;
+import fr.insalyon.creatis.grida.client.GRIDAClientException;
+import fr.insalyon.creatis.grida.client.StandaloneGridaClient;
 
 public class IterationService {
     private static final Logger logger = Logger.getLogger(MoteurLite.class);
@@ -30,8 +39,6 @@ public class IterationService {
         dotKeys.retainAll(inputsMap.keySet());
         crossKeys.retainAll(inputsMap.keySet());
         crossKeys.addAll(allKeys);
-
-        logger.info("XXX inputsMap.0=" + inputsMap);
 
         // prototype directory listing: transform a single directory input into a list of file inputs
         Map<String, List<String>> i2 = new HashMap<String, List<String>>();

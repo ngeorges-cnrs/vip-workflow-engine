@@ -1,7 +1,10 @@
 package fr.insalyon.creatis.moteurlite.runner;
 
+import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
+import java.nio.file.FileSystems;
+import java.nio.file.PathMatcher;
 import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
@@ -29,6 +32,17 @@ import fr.insalyon.creatis.moteurlite.gasw.GaswMonitor;
 import fr.insalyon.creatis.moteurlite.gasw.WorkflowsDBRepository;
 import fr.insalyon.creatis.moteurlite.iteration.IterationService;
 
+import java.io.File;
+import java.nio.file.Paths;
+import java.nio.file.FileSystems;
+import java.nio.file.PathMatcher;
+
+import fr.insalyon.creatis.grida.common.bean.GridData;
+import fr.insalyon.creatis.grida.client.GRIDAClient;
+import fr.insalyon.creatis.grida.client.GRIDAClientException;
+import fr.insalyon.creatis.grida.client.StandaloneGridaClient;
+
+
 public class MoteurLiteRunner {
     private static final Logger logger = Logger.getLogger(MoteurLite.class);
 
@@ -50,12 +64,50 @@ public class MoteurLiteRunner {
         }
     }
 
+    private Map<String, List<String>> listDir(Map<String, List<String>> inputsMap, BoutiquesDescriptor boutiquesDescriptor) {
+        // . get activation condition from descriptor: list of (input key name + list of patterns)
+        // . for each matching input, list files through Grida:
+        //   . keep only files that match the pattern, ideally check type instead of just name
+        //   . check how to use standalone mode instead of client
+        // . expand inputsMap with whatever was found
+        Map<String, List<String>> result = new HashMap<String, List<String>>();
+        logger.info("XXX inputsMap.0=" + inputsMap);
+        // GRIDAClient client = new GRIDAClient("localhost", 9006, "proxy");
+        GRIDAClient client = new StandaloneGridaClient("proxy", new File("test.conf"));
+        for (String key: inputsMap.keySet()) {
+            List<String> val = inputsMap.get(key);
+            if (key.equals("input1") &&
+                    val.size() == 1 &&
+                    val.getFirst().equals("file:/var/www/html/workflows/SharedData/users/admin_test")) {
+                try {
+                    String dir = "/var/www/html/workflows/SharedData/users/admin_test";
+                    List<String> resultFiles = new ArrayList<String>();
+                    logger.info("XXX start grida listing, dir=" + dir);
+                    List<GridData> files = client.getFolderData(dir, true);
+                    for (GridData file : files) {
+                        String filename = file.getName();
+                        logger.info("XXX files: name=" + filename + ", type=" + file.getType());
+                        PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:*.txt");
+                        if (matcher.matches(Paths.get(filename))) {
+                            resultFiles.add(filename);
+                        }
+                    }
+                    result.put(key, resultFiles);
+                    logger.info("XXX end grida listing, files=" + resultFiles);
+                } catch (GRIDAClientException e) {
+                }
+            }
+        }
+        return result;
+    }
+
     public void run(String workflowId, String boutiquesFilePath, String inputsFilePath) throws MoteurLiteException {
         Gasw gasw;
         Map<String, List<String>> allInputs = inputsFileService.parseInputData(inputsFilePath);
         BoutiquesDescriptor descriptor = boutiquesService.parseFile(boutiquesFilePath);
         Map<String, Input> boutiquesInputs = boutiquesService.getInputsMap(descriptor);
 
+        allInputs = listDir(allInputs, descriptor);
         List<Map<String, String>> invocationsInputs = iterationService.compute(allInputs, descriptor);
 
         workflowsDBRepo.persistProcessors(workflowId, descriptor.getName(), 0, 0, 0);
