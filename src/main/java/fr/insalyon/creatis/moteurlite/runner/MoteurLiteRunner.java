@@ -42,7 +42,6 @@ import fr.insalyon.creatis.grida.client.GRIDAClient;
 import fr.insalyon.creatis.grida.client.GRIDAClientException;
 import fr.insalyon.creatis.grida.client.StandaloneGridaClient;
 
-
 public class MoteurLiteRunner {
     private static final Logger logger = Logger.getLogger(MoteurLite.class);
 
@@ -72,8 +71,11 @@ public class MoteurLiteRunner {
         // . expand inputsMap with whatever was found
         Map<String, List<String>> result = new HashMap<String, List<String>>();
         logger.info("XXX inputsMap.0=" + inputsMap);
-        // GRIDAClient client = new GRIDAClient("localhost", 9006, "proxy");
-        GRIDAClient client = new StandaloneGridaClient("proxy", new File("test.conf"));
+        logger.info("XXX calling GridaClient...");
+        GRIDAClient client = new GRIDAClient("localhost", 9006, "/var/www/html/workflows/x509up_server");
+        // GRIDAClient client = new StandaloneGridaClient("/var/www/html/workflows/x509up_server", new File("/var/www/prod/grida/grida-server.conf"));
+        // GRIDAClient client = new StandaloneGridaClient("/var/www/html/workflows/x509up_server", new File("/vip/grida/grida-server.conf"));
+        logger.info("XXX GridaClient created");
         for (String key: inputsMap.keySet()) {
             List<String> val = inputsMap.get(key);
             if (key.equals("input1") &&
@@ -89,13 +91,15 @@ public class MoteurLiteRunner {
                         logger.info("XXX files: name=" + filename + ", type=" + file.getType());
                         PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:*.txt");
                         if (matcher.matches(Paths.get(filename))) {
-                            resultFiles.add(filename);
+                            resultFiles.add("file:/var/www/html/workflows/SharedData/users/admin_test" + "/" + filename);
                         }
                     }
                     result.put(key, resultFiles);
                     logger.info("XXX end grida listing, files=" + resultFiles);
                 } catch (GRIDAClientException e) {
                 }
+            } else { // leave key as is
+                result.put(key, val);
             }
         }
         return result;
@@ -132,6 +136,7 @@ public class MoteurLiteRunner {
             List<URI> downloads = new ArrayList<>();
             Map<String, String> finalInvocationInputs = new HashMap<>();
 
+            logger.info("XXX createJobs: invocationInputs=" + invocationInputs);
             for (String inputId : invocationInputs.keySet()) {
                 String inputValue = invocationInputs.get(inputId);
                 if (MoteurLiteConstants.RESULTS_DIRECTORY.equals(inputId)) {
@@ -146,11 +151,13 @@ public class MoteurLiteRunner {
                     finalInvocationInputs.put(inputId, inputValue);
                 }
             }
+            logger.info("XXX createJobs: gaswInput resultsDirectoryURI=" + resultsDirectoryURI);
 
             String invocationString = convertMapToJson(finalInvocationInputs, boutiquesInputs);
             String jobId = applicationName + "-" + System.nanoTime() + ".sh";
 
             GaswInput gaswInput = new GaswInput(applicationName, applicationName + ".json", downloads, resultsDirectoryURI, invocationString, jobId);
+            logger.info("XXX createJobs: gaswInput uploadURI=" + gaswInput.getUploadURI());
             try {
                 gasw.submit(gaswInput);
             } catch (GaswException e) {

@@ -13,11 +13,6 @@ import fr.insalyon.creatis.moteurlite.boutiques.BoutiquesService;
 import fr.insalyon.creatis.moteurlite.boutiques.scheme.BoutiquesDescriptor;
 import org.apache.log4j.Logger;
 
-import fr.insalyon.creatis.grida.common.bean.GridData;
-import fr.insalyon.creatis.grida.client.GRIDAClient;
-import fr.insalyon.creatis.grida.client.GRIDAClientException;
-import fr.insalyon.creatis.grida.client.StandaloneGridaClient;
-
 public class IterationService {
     private static final Logger logger = Logger.getLogger(MoteurLite.class);
     private final BoutiquesService boutiquesService;
