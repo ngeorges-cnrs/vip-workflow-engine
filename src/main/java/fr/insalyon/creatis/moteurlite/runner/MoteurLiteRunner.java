@@ -1,16 +1,13 @@
 package fr.insalyon.creatis.moteurlite.runner;
 
-import java.io.File;
 import java.net.URI;
 import java.net.URISyntaxException;
-import java.nio.file.FileSystems;
-import java.nio.file.PathMatcher;
-import java.nio.file.Paths;
 import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import fr.insalyon.creatis.moteurlite.boutiques.scheme.Custom;
 import org.apache.log4j.Logger;
 
 import com.fasterxml.jackson.databind.ObjectMapper;
@@ -32,10 +29,9 @@ import fr.insalyon.creatis.moteurlite.gasw.GaswMonitor;
 import fr.insalyon.creatis.moteurlite.gasw.WorkflowsDBRepository;
 import fr.insalyon.creatis.moteurlite.iteration.IterationService;
 
-import java.io.File;
-import java.nio.file.Paths;
 import java.nio.file.FileSystems;
 import java.nio.file.PathMatcher;
+import java.nio.file.Paths;
 
 import fr.insalyon.creatis.grida.common.bean.GridData;
 import fr.insalyon.creatis.grida.client.GRIDAClient;
@@ -69,39 +65,67 @@ public class MoteurLiteRunner {
         //   . keep only files that match the pattern, ideally check type instead of just name
         //   . check how to use standalone mode instead of client
         // . expand inputsMap with whatever was found
+
+        String dirname = "/var/www/html/workflows/SharedData/users/admin_test";
+        String keyname = null; // for instance "input1"; - should be a list of keys
+        String pattern = null; // for instance "*.txt"; - should be a list of patterns per key
+
+        Object vipdir = null;
+        Custom c = boutiquesDescriptor.getCustom();
+        Map<String, Object> customMap = null;
+        if (c != null)
+            customMap = c.getAdditionalProperties();
+        if (customMap != null && customMap.containsKey("vip:dir")) {
+            vipdir = customMap.get("vip:dir");
+        }
+        logger.info("XXX vipdir: " + vipdir + " class=" + vipdir.getClass());
+        if (vipdir instanceof HashMap) {
+            HashMap h = (HashMap)vipdir;
+            Object o;
+            o = h.get("keyname");
+            if (o instanceof String) {
+                String s = (String)o;
+                keyname = s;
+            }
+            o = h.get("pattern");
+            if (o instanceof String) {
+                String s = (String)o;
+                pattern = s;
+            }
+        }
+        if (keyname == null || pattern == null)
+            return inputsMap;
+        logger.info("XXX in: " + inputsMap);
+
         Map<String, List<String>> result = new HashMap<String, List<String>>();
-        logger.info("XXX inputsMap.0=" + inputsMap);
-        logger.info("XXX calling GridaClient...");
         GRIDAClient client = new GRIDAClient("localhost", 9006, "/var/www/html/workflows/x509up_server");
         // GRIDAClient client = new StandaloneGridaClient("/var/www/html/workflows/x509up_server", new File("/var/www/prod/grida/grida-server.conf"));
         // GRIDAClient client = new StandaloneGridaClient("/var/www/html/workflows/x509up_server", new File("/vip/grida/grida-server.conf"));
-        logger.info("XXX GridaClient created");
         for (String key: inputsMap.keySet()) {
             List<String> val = inputsMap.get(key);
-            if (key.equals("input1") &&
-                    val.size() == 1 &&
-                    val.getFirst().equals("file:/var/www/html/workflows/SharedData/users/admin_test")) {
+            // XXX no "is a directory" test in GRIDAClient ?
+            // confirm how to test for an input (String, file:, ...)
+            if (key.equals(keyname) && val.size() == 1 && val.getFirst().equals("file:" + dirname)) {
                 try {
-                    String dir = "/var/www/html/workflows/SharedData/users/admin_test";
                     List<String> resultFiles = new ArrayList<String>();
-                    logger.info("XXX start grida listing, dir=" + dir);
-                    List<GridData> files = client.getFolderData(dir, true);
+                    List<GridData> files = client.getFolderData(dirname, true);
                     for (GridData file : files) {
-                        String filename = file.getName();
-                        logger.info("XXX files: name=" + filename + ", type=" + file.getType());
-                        PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:*.txt");
-                        if (matcher.matches(Paths.get(filename))) {
-                            resultFiles.add("file:/var/www/html/workflows/SharedData/users/admin_test" + "/" + filename);
+                        if (file.getType() == GridData.Type.File) {
+                            String filename = file.getName();
+                            PathMatcher matcher = FileSystems.getDefault().getPathMatcher("glob:" + pattern);
+                            if (matcher.matches(Paths.get(filename))) {
+                                resultFiles.add("file:" + dirname + "/" + filename);
+                            }
                         }
                     }
                     result.put(key, resultFiles);
-                    logger.info("XXX end grida listing, files=" + resultFiles);
                 } catch (GRIDAClientException e) {
                 }
             } else { // leave key as is
                 result.put(key, val);
             }
         }
+        logger.info("XXX out: " + result);
         return result;
     }
 
@@ -136,7 +160,6 @@ public class MoteurLiteRunner {
             List<URI> downloads = new ArrayList<>();
             Map<String, String> finalInvocationInputs = new HashMap<>();
 
-            logger.info("XXX createJobs: invocationInputs=" + invocationInputs);
             for (String inputId : invocationInputs.keySet()) {
                 String inputValue = invocationInputs.get(inputId);
                 if (MoteurLiteConstants.RESULTS_DIRECTORY.equals(inputId)) {
@@ -151,13 +174,11 @@ public class MoteurLiteRunner {
                     finalInvocationInputs.put(inputId, inputValue);
                 }
             }
-            logger.info("XXX createJobs: gaswInput resultsDirectoryURI=" + resultsDirectoryURI);
 
             String invocationString = convertMapToJson(finalInvocationInputs, boutiquesInputs);
             String jobId = applicationName + "-" + System.nanoTime() + ".sh";
 
             GaswInput gaswInput = new GaswInput(applicationName, applicationName + ".json", downloads, resultsDirectoryURI, invocationString, jobId);
-            logger.info("XXX createJobs: gaswInput uploadURI=" + gaswInput.getUploadURI());
             try {
                 gasw.submit(gaswInput);
             } catch (GaswException e) {
