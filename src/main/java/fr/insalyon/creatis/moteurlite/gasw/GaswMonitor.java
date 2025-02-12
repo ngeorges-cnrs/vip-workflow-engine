@@ -54,6 +54,7 @@ public class GaswMonitor extends Thread {
             }
         }
         if (true) {
+            numberOfInvocations++;
             logger.info("XXX simulating merge step");
             try {
                 gasw.submit(new GaswInput("test", "test.json", new ArrayList<>(),
@@ -65,8 +66,13 @@ public class GaswMonitor extends Thread {
                 waitForGasw();
                 List<GaswOutput> finishedMerge = gasw.getFinishedJobs();
                 logger.info("Finished merge: " + finishedMerge.size());
-                if (finishedMerge.size() == 1)
+                if (finishedMerge.size() == 1) {
+                    processFinishedJobs(finishedMerge);
+                    try {
+                        workflowsDbRepository.persistProcessors(workflowId, applicationName, numberOfInvocations - finishedJobsNumber, successfulJobsNumber, failedJobsNumber);
+                    } catch (MoteurLiteException e) {}
                     break;
+                }
             }
             logger.info("XXX end of merge step");
         }
