@@ -1,5 +1,6 @@
 package fr.insalyon.creatis.moteurlite.gasw;
 
+import java.io.IOException;
 import java.net.URI;
 import java.net.URISyntaxException;
 import java.util.ArrayList;
@@ -57,9 +58,25 @@ public class GaswMonitor extends Thread {
             numberOfInvocations++;
             logger.info("XXX simulating merge step");
             try {
-                gasw.submit(new GaswInput("test", "test.json", new ArrayList<>(),
-                        new URI("file:/var/www/html/workflows/SharedData/users/admin_test/out3"),
-                        "{\"input1\":\"final\"}", "test-final.sh"));
+                List<String> cmd = new ArrayList<>();
+                cmd.add("/bin/bash");
+                cmd.add("-c");
+                cmd.add("cp /var/www/html/workflows/SharedData/groups/Support/Applications/BasicGrep/0.1/json/BasicGrep.json grep.json"
+                        + " && sed -i 's/boutiques.filename = workflow.json/boutiques.filename = grep.json/' conf/settings.conf");
+                Process p = Runtime.getRuntime().exec(cmd.toArray(new String[]{}));
+                synchronized (p) {
+                    p.wait();
+                    logger.info("XXX exec done, r=" + p.exitValue());
+                }
+            } catch (InterruptedException | IOException e) {
+                logger.error("XXX exec error:"+e);
+            }
+            try {
+                List<URI> dl = new ArrayList<>();
+                dl.add(new URI("file:/var/www/html/workflows/SharedData/users/admin_test/input.txt"));
+                gasw.submit(new GaswInput("BasicGrep", "BasicGrep.json", dl,
+                        new URI("file:/var/www/html/workflows/SharedData/users/admin_test/outgrep"),
+                        "{\"text\":\"foo\",\"file\":\"input.txt\"}", "test-final.sh"));
             } catch (GaswException | URISyntaxException e) {}
             logger.info("XXX waiting merge step");
             for (;;) {
