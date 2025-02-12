@@ -1,16 +1,15 @@
 package fr.insalyon.creatis.moteurlite.gasw;
 
 import java.net.URI;
+import java.net.URISyntaxException;
+import java.util.ArrayList;
 import java.util.HashMap;
 import java.util.List;
 import java.util.Map;
 
+import fr.insalyon.creatis.gasw.*;
 import org.apache.log4j.Logger;
 
-import fr.insalyon.creatis.gasw.Gasw;
-import fr.insalyon.creatis.gasw.GaswException;
-import fr.insalyon.creatis.gasw.GaswExitCode;
-import fr.insalyon.creatis.gasw.GaswOutput;
 import fr.insalyon.creatis.gasw.execution.GaswStatus;
 import fr.insalyon.creatis.moteurlite.MoteurLiteException;
 
@@ -53,6 +52,23 @@ public class GaswMonitor extends Thread {
                     logger.error("Error while persisting processors during processing: ", e);
                 }
             }
+        }
+        if (true) {
+            logger.info("XXX simulating merge step");
+            try {
+                gasw.submit(new GaswInput("test", "test.json", new ArrayList<>(),
+                        new URI("file:/var/www/html/workflows/SharedData/users/admin_test/out3"),
+                        "{\"input1\":\"final\"}", "test-final.sh"));
+            } catch (GaswException | URISyntaxException e) {}
+            logger.info("XXX waiting merge step");
+            for (;;) {
+                waitForGasw();
+                List<GaswOutput> finishedMerge = gasw.getFinishedJobs();
+                logger.info("Finished merge: " + finishedMerge.size());
+                if (finishedMerge.size() == 1)
+                    break;
+            }
+            logger.info("XXX end of merge step");
         }
         terminate();
     }
@@ -103,5 +119,6 @@ public class GaswMonitor extends Thread {
         } catch (MoteurLiteException e) {
             logger.error("Error while persisting final workflow status: ", e);
         }
+        logger.info("XXX terminate/gatelab: end of execution");
     }
 }

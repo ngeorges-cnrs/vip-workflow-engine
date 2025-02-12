@@ -98,6 +98,7 @@ public class MoteurLiteRunner {
             String invocationString = convertMapToJson(finalInvocationInputs, boutiquesInputs);
             String jobId = applicationName + "-" + System.nanoTime() + ".sh";
 
+            logger.info("XXX gaswInput applicationName="+applicationName+", downloads="+downloads+", r="+resultsDirectoryURI+", inv="+invocationString+", jobId="+jobId);
             GaswInput gaswInput = new GaswInput(applicationName, applicationName + ".json", downloads, resultsDirectoryURI, invocationString, jobId);
             try {
                 gasw.submit(gaswInput);
