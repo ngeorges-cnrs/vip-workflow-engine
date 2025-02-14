@@ -54,7 +54,7 @@ public class GaswMonitor extends Thread {
                 }
             }
         }
-        if (true) {
+        if (false) {
             numberOfInvocations++;
             logger.info("XXX simulating merge step");
             try {
